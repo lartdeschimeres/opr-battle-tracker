@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Suivi de Batailles - OnePageRules</title>
+    <!-- Librairie pour générer les PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
@@ -168,7 +170,6 @@
             margin-bottom: 20px;
             border-radius: 4px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            break-inside: avoid;
         }
 
         .battle-header {
@@ -328,27 +329,515 @@
             font-size: 0.95em;
         }
 
-        @media print {
-            body { background-color: white; padding: 0; margin: 0; color: black; }
-            .container { max-width: 100%; width: 100%; margin: 0; padding: 10px; }
-            .battle-form, .backup-controls, h1, .version-tag, .btn-delete { display: none !important; }
-            #battleListContainer { display: block !important; }
-            #battleListContainer h2 { text-align: center; font-size: 24px; margin-bottom: 20px; color: black; border-bottom: 2px solid #333; padding-bottom: 10px; }
-            .battle-card { box-shadow: none; border: 1px solid #ccc; border-left: 5px solid #333; margin-bottom: 15px; page-break-inside: avoid; }
-            .battle-header { border-bottom: 1px solid #ccc; }
-            .battle-title { color: black; }
-            .tag { border: 1px solid #ccc; background: #f0f0f0 !important; color: black; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .battle-matchup { background: #f9f9f9 !important; border: 1px solid #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            .army-name, .score-value { color: black; }
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+            
+            .battle-matchup {
+                grid-template-columns: 1fr;
+                gap: 5px;
+                text-align: center;
+            }
+
+            .vs-separator {
+                font-size: 1em;
+            }
+            
+            .battle-header {
+                grid-template-columns: 1fr;
+                gap: 8px;
+                text-align: center;
+            }
+            
+            .battle-title-block {
+                justify-content: center;
+            }
+
+            .battle-date {
+                text-align: center;
+            }
+            
+            .btn-delete {
+                margin: 0 auto;
+                display: inline-block;
+            }
+
+            .backup-controls {
+                justify-content: center;
+            }
+            
+            .btn-backup, .btn-import-label {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>⚔️ Suivi de Batailles OPR</h1>
+    <div class="version-tag">Version 1.0.1</div>
+
+    <!-- Formulaire -->
+    <div class="battle-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="game">Jeu</label>
+                <select id="game">
+                    <option value="Grimdark Future">Grimdark Future</option>
+                    <option value="Age of Fantasy">Age of Fantasy</option>
+                    <option value="Age of Fantasy: Quest">Age of Fantasy: Quest</option>
+                    <option value="Grimdark Future: Firefight">Grimdark Future: Firefight</option>
+                    <option value="Age of Fantasy: Skirmish">Age of Fantasy: Skirmish</option>
+                    <option value="Grimdark Future: Star Quest">Grimdark Future: Star Quest</option>
+                    <option value="Warfleet FTL">Warfleet FTL</option>
+                    <option value="Autre / Règles maison">Autre / Règles maison</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="contextType">Contexte</label>
+                <select id="contextType" onchange="toggleContextFields()">
+                    <option value="unique">Bataille Unique</option>
+                    <option value="campaign">Campagne</option>
+                    <option value="tournament">Tournoi</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group hidden" id="campaignGroup">
+            <label for="campaignName">Nom de la campagne</label>
+            <input type="text" id="campaignName" placeholder="Ex: Invasion de Mars...">
+        </div>
+
+        <div class="form-group hidden" id="tournamentGroup">
+            <label for="tournamentName">Nom du tournoi / Événement</label>
+            <input type="text" id="tournamentName" placeholder="Ex: Tournoi du Club...">
+        </div>
+
+        <div class="form-group">
+            <label for="scenario">Nom du Scénario</label>
+            <input type="text" id="scenario" placeholder="Ex: La Colline 42, Attaque de nuit...">
+        </div>
+        
+        <div class="form-group">
+            <label for="date">Date de la partie</label>
+            <input type="date" id="date">
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="myArmy">Mon armée</label>
+                <input type="text" id="myArmy" placeholder="Ex: Imperium, Elfes...">
+            </div>
+            <div class="form-group">
+                <label for="enemyArmy">Armée adverse</label>
+                <input type="text" id="enemyArmy" placeholder="Ex: Orks, Nains...">
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label for="myPoints">Mes Points d'Armée</label>
+                <input type="number" id="myPoints" placeholder="Ex: 2000" min="0">
+            </div>
+            <div class="form-group">
+                <label for="enemyPoints">Points Armée Adverse</label>
+                <input type="number" id="enemyPoints" placeholder="Ex: 2000" min="0">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="enemyPlayer">Pseudo de l'adversaire</label>
+                <input type="text" id="enemyPlayer" placeholder="Ex: Thomas, LeGrandGuru...">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="myScore">Mes Points de Victoire</label>
+                <input type="number" id="myScore" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+                <label for="enemyScore">PV Adversaire</label>
+                <input type="number" id="enemyScore" placeholder="0" min="0">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Faits marquants / Notes</label>
+            <textarea id="notes" placeholder="Décrivez les moments clés, les erreurs, les coups de chance..."></textarea>
+        </div>
+
+        <button class="btn-save" onclick="addBattle()">Enregistrer la bataille</button>
+    </div>
+
+    <!-- Zone de Sauvegarde -->
+    <div class="backup-controls">
+        <button class="btn-backup" onclick="exportData()">
+            <span>💾</span> JSON (Sauvegarde)
+        </button>
+        <button class="btn-backup" onclick="exportCSV()">
+            <span>📊</span> CSV (Excel)
+        </button>
+        <button class="btn-backup" onclick="exportPDF()">
+            <span>📄</span> PDF
+        </button>
+        
+        <label for="fileInput" class="btn-backup btn-import-label">
+            <span>📂</span> Importer JSON
+        </label>
+        <input type="file" id="fileInput" accept=".json" onchange="importData(this)">
+    </div>
+
+    <!-- Liste -->
+    <div id="battleListContainer">
+        <h2>Historique des parties</h2>
+        <ul class="battle-list" id="battleList">
+            <!-- Les batailles s'afficheront ici -->
+        </ul>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', loadBattles);
+    document.getElementById('date').valueAsDate = new Date();
+
+    function toggleContextFields() {
+        const contextType = document.getElementById('contextType').value;
+        const campaignGroup = document.getElementById('campaignGroup');
+        const tournamentGroup = document.getElementById('tournamentGroup');
+
+        campaignGroup.classList.add('hidden');
+        tournamentGroup.classList.add('hidden');
+
+        if (contextType === 'campaign') {
+            campaignGroup.classList.remove('hidden');
+        } else if (contextType === 'tournament') {
+            tournamentGroup.classList.remove('hidden');
+        }
+    }
+
+    function addBattle() {
+        const game = document.getElementById('game').value;
+        const contextType = document.getElementById('contextType').value;
+        
+        let contextName = "";
+        let contextLabel = "";
+        
+        if (contextType === 'campaign') {
+            contextName = document.getElementById('campaignName').value;
+            contextLabel = "Campagne";
+        } else if (contextType === 'tournament') {
+            contextName = document.getElementById('tournamentName').value;
+            contextLabel = "Tournoi";
+        } else {
+            contextLabel = "Bataille Unique";
         }
 
-        @media (max-width: 600px) {
-            .form-row { flex-direction: column; gap: 0; }
-            .battle-matchup { grid-template-columns: 1fr; gap: 5px; text-align: center; }
-            .vs-separator { font-size: 1em; }
-            .battle-header { grid-template-columns: 1fr; gap: 8px; text-align: center; }
-            .battle-title-block { justify-content: center; }
-            .battle-date { text-align: center; }
-            .btn-delete { margin: 0 auto; display: inline-block; }
-            .backup-controls { justify-content: center; }
-            .btn-backup, .btn-import-label { width: 100%; justify-content: center; }
+        const scenario = document.getElementById('scenario').value;
+        const date = document.getElementById('date').value;
+        const myArmy = document.getElementById('myArmy').value;
+        const enemyArmy = document.getElementById('enemyArmy').value;
+        const myPoints = document.getElementById('myPoints').value;
+        const enemyPoints = document.getElementById('enemyPoints').value;
+        const enemyPlayer = document.getElementById('enemyPlayer').value;
+        const myScore = document.getElementById('myScore').value;
+        const enemyScore = document.getElementById('enemyScore').value;
+        const notes = document.getElementById('notes').value;
+
+        if (!scenario || !myArmy || !enemyArmy) {
+            alert("Merci de remplir le scénario et les deux armées.");
+            return;
+        }
+
+        const battle = {
+            id: Date.now(),
+            game,
+            contextType,
+            contextName,
+            contextLabel,
+            scenario,
+            date,
+            myArmy,
+            enemyArmy,
+            myPoints: myPoints || 0,
+            enemyPoints: enemyPoints || 0,
+            enemyPlayer: enemyPlayer || "Inconnu",
+            myScore: myScore || 0,
+            enemyScore: enemyScore || 0,
+            notes
+        };
+
+        let battles = getBattlesFromStorage();
+        battles.unshift(battle);
+        localStorage.setItem('oprBattles', JSON.stringify(battles));
+
+        // Reset form
+        document.getElementById('scenario').value = '';
+        document.getElementById('myArmy').value = '';
+        document.getElementById('enemyArmy').value = '';
+        document.getElementById('myPoints').value = '';
+        document.getElementById('enemyPoints').value = '';
+        document.getElementById('enemyPlayer').value = '';
+        document.getElementById('myScore').value = '';
+        document.getElementById('enemyScore').value = '';
+        document.getElementById('notes').value = '';
+        document.getElementById('campaignName').value = '';
+        document.getElementById('tournamentName').value = '';
+        document.getElementById('contextType').value = 'unique';
+        toggleContextFields();
+        
+        renderBattles();
+    }
+
+    function deleteBattle(id) {
+        if(confirm("Voulez-vous vraiment supprimer cette entrée ?")) {
+            let battles = getBattlesFromStorage();
+            battles = battles.filter(battle => battle.id !== id);
+            localStorage.setItem('oprBattles', JSON.stringify(battles));
+            renderBattles();
+        }
+    }
+
+    function getBattlesFromStorage() {
+        const stored = localStorage.getItem('oprBattles');
+        return stored ? JSON.parse(stored) : [];
+    }
+
+    function loadBattles() {
+        renderBattles();
+    }
+
+    function renderBattles() {
+        const list = document.getElementById('battleList');
+        const battles = getBattlesFromStorage();
+        
+        list.innerHTML = '';
+
+        if (battles.length === 0) {
+            list.innerHTML = '<li style="text-align:center; color:#777;">Aucune bataille enregistrée pour le moment.</li>';
+            return;
+        }
+
+        battles.forEach(battle => {
+            const li = document.createElement('li');
+            li.className = 'battle-card';
+            
+            const dateObj = new Date(battle.date);
+            const dateStr = dateObj.toLocaleDateString('fr-FR');
+
+            let contextDisplay = '';
+            if (battle.contextType !== 'unique' && battle.contextName) {
+                contextDisplay = `<span class="tag tag-context">${escapeHtml(battle.contextLabel)}: ${escapeHtml(battle.contextName)}</span>`;
+            } else {
+                contextDisplay = `<span class="tag tag-context">${battle.contextLabel}</span>`;
+            }
+
+            const enemyPlayerDisplay = battle.enemyPlayer && battle.enemyPlayer !== "Inconnu" 
+                ? `<div class="player-name">Joueur : ${escapeHtml(battle.enemyPlayer)}</div>` 
+                : '';
+            
+            const myPointsDisplay = battle.myPoints > 0 
+                ? `<div class="army-points">${battle.myPoints} pts</div>` 
+                : '';
+            
+            const enemyPointsDisplay = battle.enemyPoints > 0 
+                ? `<div class="army-points">${battle.enemyPoints} pts</div>` 
+                : '';
+
+            li.innerHTML = `
+                <div class="battle-header">
+                    <div class="battle-title-block">
+                        <span class="battle-title">${escapeHtml(battle.scenario)}</span>
+                        <span class="tag tag-game">${escapeHtml(battle.game)}</span>
+                        ${contextDisplay}
+                    </div>
+                    <span class="battle-date">${dateStr}</span>
+                    <button class="btn-delete" onclick="deleteBattle(${battle.id})">Supprimer</button>
+                </div>
+                
+                <div class="battle-matchup">
+                    <div class="army-block">
+                        <span class="army-label">Mon armée</span>
+                        <span class="army-name">${escapeHtml(battle.myArmy)}</span>
+                        ${myPointsDisplay}
+                    </div>
+                    <div class="vs-separator">VS</div>
+                    <div class="army-block">
+                        <span class="army-label">Adversaire</span>
+                        <span class="army-name">${escapeHtml(battle.enemyArmy)}</span>
+                        ${enemyPointsDisplay}
+                        ${enemyPlayerDisplay}
+                    </div>
+                </div>
+
+                <div class="battle-score">
+                    <div class="score-box">
+                        <span class="score-label">Mes PV</span>
+                        <span class="score-value">${battle.myScore}</span>
+                    </div>
+                    <span>-</span>
+                    <div class="score-box">
+                        <span class="score-label">PV Adv.</span>
+                        <span class="score-value">${battle.enemyScore}</span>
+                    </div>
+                </div>
+                
+                ${battle.notes ? `<div class="battle-notes">${escapeHtml(battle.notes)}</div>` : ''}
+            `;
+            list.appendChild(li);
+        });
+    }
+
+    // --- EXPORT JSON ---
+    function exportData() {
+        const battles = getBattlesFromStorage();
+        if (battles.length === 0) {
+            alert("Aucune donnée à exporter !");
+            return;
+        }
+        const dataStr = JSON.stringify(battles, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        link.download = `sauvegarde_opr_${date}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // --- EXPORT CSV ---
+    function exportCSV() {
+        const battles = getBattlesFromStorage();
+        if (battles.length === 0) {
+            alert("Aucune donnée à exporter !");
+            return;
+        }
+
+        const headers = ["Date", "Jeu", "Contexte", "Scénario", "Mon Armée", "Mes Points", "Adversaire (Armée)", "Pts Adv.", "Adversaire (Joueur)", "Mes PV", "PV Adv.", "Résultat", "Notes"];
+        
+        const rows = battles.map(b => {
+            const result = b.myScore > b.enemyScore ? "Victoire" : (b.myScore < b.enemyScore ? "Défaite" : "Nul");
+            return [
+                b.date,
+                b.game,
+                b.contextLabel + (b.contextName ? `: ${b.contextName}` : ""),
+                b.scenario,
+                b.myArmy,
+                b.myPoints,
+                b.enemyArmy,
+                b.enemyPoints,
+                b.enemyPlayer || "",
+                b.myScore,
+                b.enemyScore,
+                result,
+                `"${(b.notes || '').replace(/"/g, '""')}"`
+            ].join(";");
+        });
+
+        const csvContent = [headers.join(";"), ...rows].join("\n");
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        link.download = `historique_opr_${date}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // --- EXPORT PDF ---
+    function exportPDF() {
+        const element = document.getElementById('battleListContainer');
+        if (element.querySelectorAll('.battle-card').length === 0) {
+            alert("Aucune donnée à exporter !");
+            return;
+        }
+
+        const opt = {
+            margin:       [10, 10, 10, 10],
+            filename:     `historique_opr_${new Date().toISOString().slice(0, 10)}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+
+        const deleteButtons = document.querySelectorAll('.btn-delete');
+        deleteButtons.forEach(btn => btn.style.display = 'none');
+        
+        const originalTitle = document.querySelector('#battleListContainer h2').innerText;
+        document.querySelector('#battleListContainer h2').innerText = "Historique des Batailles OPR";
+
+        html2pdf().set(opt).from(element).save().then(() => {
+            deleteButtons.forEach(btn => btn.style.display = '');
+            document.querySelector('#battleListContainer h2').innerText = originalTitle;
+        });
+    }
+
+    // --- IMPORT JSON ---
+    function importData(inputElement) {
+        const file = inputElement.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedBattles = JSON.parse(e.target.result);
+                
+                if (!Array.isArray(importedBattles)) {
+                    throw new Error("Format de fichier invalide");
+                }
+
+                // Gestion de la compatibilité des anciennes versions (si points d'armée manquants)
+                const normalizedBattles = importedBattles.map(b => ({
+                    ...b,
+                    myPoints: b.myPoints || 0,
+                    enemyPoints: b.enemyPoints || 0
+                }));
+
+                if (confirm(`Le fichier contient ${normalizedBattles.length} parties. \nVoulez-vous les AJOUTER à votre historique actuel ? (OK = Ajouter, Annuler = Remplacer tout)`)) {
+                    const currentBattles = getBattlesFromStorage();
+                    const newIds = new Set(currentBattles.map(b => b.id));
+                    const uniqueNewBattles = normalizedBattles.filter(b => !newIds.has(b.id));
+                    
+                    const merged = [...currentBattles, ...uniqueNewBattles];
+                    merged.sort((a, b) => b.id - a.id);
+                    
+                    localStorage.setItem('oprBattles', JSON.stringify(merged));
+                    alert(`${uniqueNewBattles.length} nouvelles parties ajoutées avec succès !`);
+                } else {
+                    if(confirm("Attention : Cela va effacer tout votre historique actuel pour le remplacer par celui du fichier. Êtes-vous sûr ?")) {
+                        localStorage.setItem('oprBattles', JSON.stringify(normalizedBattles));
+                        alert("Données importées avec succès !");
+                    }
+                }
+                renderBattles();
+            } catch (err) {
+                alert("Erreur lors de la lecture du fichier : " + err.message);
+            }
+        };
+        reader.readAsText(file);
+        
+        inputElement.value = '';
+    }
+
+    function escapeHtml(text) {
+        if (!text) return text;
+        return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+</script>
+
+</body>
+</html>
