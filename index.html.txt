@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi de Batailles - OnePageRules</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --accent-color: #e67e22;
+            --bg-color: #f4f4f9;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --border-color: #ddd;
+            --danger-color: #e74c3c;
+            --backup-color: #2980b9;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .version-tag {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-bottom: 30px;
+            font-weight: normal;
+        }
+
+        /* Formulaire */
+        .battle-form {
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 0.95em;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="file"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: inherit;
+            font-size: 1em;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button.btn-save {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            width: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+
+        button.btn-save:hover {
+            background-color: #34495e;
+        }
+
+        /* Zone de sauvegarde */
+        .backup-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .btn-backup {
+            background-color: var(--backup-color);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.2s;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .btn-backup:hover {
+            background-color: #1c5980;
+        }
+
+        .btn-import-label {
+            display: inline-flex;
+            vertical-align: middle; 
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Liste des batailles */
+        .battle-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .battle-card {
+            background: var(--card-bg);
+            border-left: 5px solid var(--accent-color);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            break-inside: avoid;
+        }
+
+        .battle-header {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 12px;
+        }
+
+        .battle-title-block {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .battle-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: var(--primary-color);
+            word-break: break-word;
+        }
+        
+        .tag {
+            font-size: 0.8em;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: normal;
+            white-space: nowrap;
+        }
+
+        .tag-game {
+            background-color: #eee;
+            color: #555;
+        }
+
+        .tag-context {
+            background-color: #e8f4fd;
+            color: #2980b9;
+            border: 1px solid #bde0fe;
+        }
+
+        .battle-date {
+            font-size: 0.9em;
+            color: #777;
+            white-space: nowrap;
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .btn-delete {
+            background: #fff0f0;
+            border: 1px solid #fadbd8;
+            color: var(--danger-color);
+            cursor: pointer;
+            font-size: 0.8em;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+            white-space: nowrap;
+            font-weight: bold;
+        }
+
+        .btn-delete:hover {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .battle-matchup {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            background: #fafafa;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        .army-block {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .army-label {
+            font-size: 0.8em;
+            color: #777;
+            margin-bottom: 2px;
+        }
+
+        .army-name {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        .army-points {
+            font-size: 0.8em;
+            color: var(--primary-color);
+            background: #eef2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-top: 4px;
+            display: inline-block;
+            font-weight: bold;
+        }
+
+        .player-name {
+            font-size: 0.85em;
+            color: var(--backup-color);
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        .vs-separator {
+            font-weight: bold;
+            color: var(--accent-color);
+            font-size: 1.2em;
+        }
+
+        .battle-score {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .score-box {
+            text-align: center;
+        }
+        
+        .score-label {
+            font-size: 0.75em;
+            color: #777;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .score-value {
+            color: var(--primary-color);
+            font-size: 1.3em;
+        }
+
+        .battle-notes {
+            background: #f9f9f9;
+            padding: 10px;
+            border-radius: 4px;
+            font-style: italic;
+            white-space: pre-wrap;
+            font-size: 0.95em;
+        }
+
+        @media print {
+            body { background-color: white; padding: 0; margin: 0; color: black; }
+            .container { max-width: 100%; width: 100%; margin: 0; padding: 10px; }
+            .battle-form, .backup-controls, h1, .version-tag, .btn-delete { display: none !important; }
+            #battleListContainer { display: block !important; }
+            #battleListContainer h2 { text-align: center; font-size: 24px; margin-bottom: 20px; color: black; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            .battle-card { box-shadow: none; border: 1px solid #ccc; border-left: 5px solid #333; margin-bottom: 15px; page-break-inside: avoid; }
+            .battle-header { border-bottom: 1px solid #ccc; }
+            .battle-title { color: black; }
+            .tag { border: 1px solid #ccc; background: #f0f0f0 !important; color: black; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .battle-matchup { background: #f9f9f9 !important; border: 1px solid #eee; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .army-name, .score-value { color: black; }
+        }
+
+        @media (max-width: 600px) {
+            .form-row { flex-direction: column; gap: 0; }
+            .battle-matchup { grid-template-columns: 1fr; gap: 5px; text-align: center; }
+            .vs-separator { font-size: 1em; }
+            .battle-header { grid-template-columns: 1fr; gap: 8px; text-align: center; }
+            .battle-title-block { justify-content: center; }
+            .battle-date { text-align: center; }
+            .btn-delete { margin: 0 auto; display: inline-block; }
+            .backup-controls { justify-content: center; }
+            .btn-backup, .btn-import-label { width: 100%; justify-content: center; }
