@@ -36,3 +36,4 @@ Les suggestions d'amélioration sont les bienvenues ! N'hésitez pas à ouvrir u
 ## 📄 Licence
 
 Ce projet est open-source et destiné à la communauté OnePageRules.
+Distribué sous licence MIT.
